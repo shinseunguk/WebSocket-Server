@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>채팅 클라이언트</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f4f4f9;
+    }
+    #chatContainer {
+      width: 400px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    #chatStatus {
+      padding: 10px;
+      background-color: #f8f9fa;
+      font-weight: bold;
+      text-align: center;
+      color: #555;
+    }
+    #chatLog {
+      padding: 10px;
+      height: 400px;
+      overflow-y: auto;
+      border-bottom: 1px solid #ddd;
+      display: flex;
+      flex-direction: column;
+    }
+    .message {
+      margin: 8px 0;
+      padding: 8px 12px;
+      border-radius: 15px;
+      max-width: 80%;
+    }
+    .sent {
+      align-self: flex-start;
+      background-color: #007bff;
+      color: white;
+    }
+    .received {
+      align-self: flex-end;
+      background-color: #e1e1e1;
+      color: black;
+    }
+    #inputContainer {
+      display: flex;
+      padding: 10px;
+      background: #f4f4f9;
+    }
+    #messageInput {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 5px;
+    }
+    #sendButton {
+      margin-left: 10px;
+      padding: 8px 12px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    #sendButton:hover {
+      background-color: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div id="chatContainer">
+    <div id="chatStatus">대기 중...</div> <!-- 채팅 상태 표시 -->
+    <div id="chatLog"></div>
+    <div id="inputContainer">
+      <input type="text" id="messageInput" placeholder="메시지를 입력하세요" />
+      <button id="sendButton" onclick="sendMessage()">보내기</button>
+    </div>
+  </div>
+
+  <script>
+    // WebSocket 연결
+    const ws = new WebSocket('ws://localhost:8080');
+
+    // 채팅 상태 업데이트 함수
+    function updateChatStatus(status) {
+      const statusElement = document.getElementById('chatStatus');
+      statusElement.textContent = status;
+    }
+
+    // 서버로부터 메시지를 받았을 때
+    ws.onmessage = (event) => {
+      const messageData = JSON.parse(event.data);  // JSON 데이터를 파싱
+
+      // 메시지 타입에 따라 분기 처리
+      if (messageData.type === 'info') {
+        updateChatStatus(messageData.message);  // 채팅 상태 업데이트
+      } else if (messageData.type === 'chat') {
+        addMessage(`상대: ${messageData.message}`, 'received');  // 일반 채팅 메시지 처리
+      }
+    };
+
+    // 메시지를 화면에 추가하는 함수
+    function addMessage(text, type) {
+      const chatLog = document.getElementById('chatLog');
+      const message = document.createElement('div');
+      message.className = `message ${type}`;
+      message.textContent = text;
+      chatLog.appendChild(message);
+      chatLog.scrollTop = chatLog.scrollHeight; // 스크롤을 아래로 이동
+    }
+
+    // 메시지를 서버로 보내는 함수
+    function sendMessage() {
+      const input = document.getElementById('messageInput');
+      const message = input.value.trim();
+      if (message) {
+        addMessage(`나: ${message}`, 'sent');
+        ws.send(message); // 서버에 메시지 전송
+        input.value = ''; // 입력 필드 초기화
+      }
+    }
+
+    // Enter 키로 메시지 전송
+    document.getElementById('messageInput').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        sendMessage();
+      }
+    });
+
+    // WebSocket 연결이 종료될 때
+    ws.onclose = () => {
+      addMessage('서버 연결이 종료되었습니다.', 'received');
+      updateChatStatus('서버 연결 종료');  // 연결 종료 상태로 업데이트
+    };
+
+    // WebSocket 연결 시
+    ws.onopen = () => {
+      updateChatStatus('서버와 연결됨');  // 서버와 연결된 상태로 업데이트
+    };
+  </script>
+</body>
+</html>
